@@ -13,7 +13,7 @@ def check_command_exists(command):
                                     stderr=subprocess.PIPE,
                                     encoding='utf-8',
                                     errors='replace')
-        else:
+        else:  # Unix-like systems
             result = subprocess.run(['which', command],
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE,
@@ -83,25 +83,32 @@ def get_file_from_commit(commit_id, file_path, repo_root):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Compare two versions of a .tex file using latexdiff.')
+        description="Compare two versions of a .tex file using latexdiff.")
     parser.add_argument(
-        '-t',
-        '--tex_file',
+        '-i',
+        '--input',
         required=True,
-        help='Absolute or relative path of the .tex file to compare.')
+        help="Absolute or relative path of the .tex file to compare.")
     parser.add_argument(
-        '-o',
+        '-co',
         '--old_commit_id',
         required=True,
-        help='The commit ID containing the old version of the file.')
+        help="The commit ID containing the old version of the file.")
     parser.add_argument(
-        '-n',
+        '-cn',
         '--new_commit_id',
         required=True,
-        help='The commit ID containing the new version of the file.')
+        help="The commit ID containing the new version of the file.")
+    parser.add_argument(
+        '-o',
+        '--output',
+        required=False,
+        help=
+        "Path for the output diff .tex file. If not provided, output is printed to stdout."
+    )
     parser.add_argument('--debug',
                         action='store_true',
-                        help='Enable debug output.')
+                        help="Enable debug output.")
 
     args = parser.parse_args()
 
@@ -113,12 +120,13 @@ def main():
         print("Error: git command not found.", file=sys.stderr)
         sys.exit(1)
 
-    # Deduce the repository root from the TeX file's location.
-    repo_root = get_repo_root_from_path(args.tex_file)
+    # Deduce the repository root from the input file's location.
+    repo_root = get_repo_root_from_path(args.input)
     repo_root_abs = os.path.abspath(repo_root)
 
     if args.debug:
-        print(f"Debug: Repository root deduced from TeX file: {repo_root_abs}")
+        print(
+            f"Debug: Repository root deduced from input file: {repo_root_abs}")
         current_commit = get_current_commit(repo_root_abs)
         if current_commit:
             print(f"Debug: Current commit in repository: {current_commit}")
@@ -126,27 +134,26 @@ def main():
             print("Debug: Could not determine current commit id.",
                   file=sys.stderr)
 
-    # Compute the absolute and relative path of the TeX file.
-    tex_file_abs = os.path.abspath(args.tex_file)
-    relative_tex_file = os.path.relpath(tex_file_abs, repo_root_abs)
+    # Compute the absolute and relative path of the input file.
+    input_abs = os.path.abspath(args.input)
+    relative_input = os.path.relpath(input_abs, repo_root_abs)
 
     if args.debug:
-        print(f"Debug: Absolute path of TeX file: {tex_file_abs}")
-        print(
-            f"Debug: Computed relative path of TeX file: {relative_tex_file}")
+        print(f"Debug: Absolute path of input file: {input_abs}")
+        print(f"Debug: Computed relative path of input file: {relative_input}")
 
-    file_full_path = os.path.join(repo_root_abs, relative_tex_file)
+    file_full_path = os.path.join(repo_root_abs, relative_input)
     if not os.path.isfile(file_full_path):
         print(
-            f"Error: The file {args.tex_file} does not exist in the repository at {repo_root_abs}.",
+            f"Error: The file {args.input} does not exist in the repository at {repo_root_abs}.",
             file=sys.stderr)
         sys.exit(1)
 
     # Retrieve the old and new versions of the file from the specified commits.
-    old_file_content = get_file_from_commit(args.old_commit_id,
-                                            relative_tex_file, repo_root_abs)
-    new_file_content = get_file_from_commit(args.new_commit_id,
-                                            relative_tex_file, repo_root_abs)
+    old_file_content = get_file_from_commit(args.old_commit_id, relative_input,
+                                            repo_root_abs)
+    new_file_content = get_file_from_commit(args.new_commit_id, relative_input,
+                                            repo_root_abs)
 
     # Write the file versions to temporary files.
     old_file_path = 'old_version.tex'
@@ -167,7 +174,15 @@ def main():
             print("Error: latexdiff failed.", file=sys.stderr)
             print(result.stderr, file=sys.stderr)
             sys.exit(1)
-        print(result.stdout)
+
+        # Write the output diff to file if an output path is provided, else print it.
+        if args.output:
+            with open(args.output, 'w', encoding='utf-8') as outfile:
+                outfile.write(result.stdout)
+            if args.debug:
+                print(f"Debug: Output written to {args.output}")
+        else:
+            print(result.stdout)
     except Exception as e:
         print(f"Error during processing: {e}", file=sys.stderr)
         sys.exit(1)
