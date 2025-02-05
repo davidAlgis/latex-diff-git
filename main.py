@@ -97,14 +97,17 @@ def main():
     parser.add_argument(
         '-cn',
         '--new_commit_id',
-        required=True,
-        help="The commit ID containing the new version of the file.")
+        required=False,
+        default='HEAD',
+        help=
+        "The commit ID containing the new version of the file. Defaults to HEAD."
+    )
     parser.add_argument(
         '-o',
         '--output',
         required=False,
-        help=
-        "Path for the output diff .tex file. If not provided, output is printed to stdout."
+        help="Path for the output diff .tex file. "
+        "If not provided, the output is saved near the input file as 'input-diff.tex'."
     )
     parser.add_argument('--debug',
                         action='store_true',
@@ -175,14 +178,17 @@ def main():
             print(result.stderr, file=sys.stderr)
             sys.exit(1)
 
-        # Write the output diff to file if an output path is provided, else print it.
-        if args.output:
-            with open(args.output, 'w', encoding='utf-8') as outfile:
-                outfile.write(result.stdout)
-            if args.debug:
-                print(f"Debug: Output written to {args.output}")
-        else:
-            print(result.stdout)
+        # Determine the output path if not provided.
+        if not args.output:
+            input_dir = os.path.dirname(input_abs)
+            base, ext = os.path.splitext(os.path.basename(input_abs))
+            args.output = os.path.join(input_dir, f"{base}-diff{ext}")
+
+        # Write the output diff to file.
+        with open(args.output, 'w', encoding='utf-8') as outfile:
+            outfile.write(result.stdout)
+        if args.debug:
+            print(f"Debug: Output written to {args.output}")
     except Exception as e:
         print(f"Error during processing: {e}", file=sys.stderr)
         sys.exit(1)
