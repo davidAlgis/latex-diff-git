@@ -46,18 +46,6 @@ def get_repo_root_from_path(path):
         sys.exit(1)
 
 
-def get_current_commit(repo_root):
-    """Return the current commit id in the repository located at repo_root."""
-    try:
-        commit_id = subprocess.check_output(
-            ['git', '-C', repo_root, 'rev-parse', 'HEAD'],
-            encoding='utf-8',
-            errors='replace').strip()
-        return commit_id
-    except subprocess.CalledProcessError:
-        return None
-
-
 def get_file_from_commit(commit_id, file_path, repo_root):
     """
     Retrieve a file from a specific Git commit in the repository at repo_root.
@@ -109,9 +97,6 @@ def main():
         help="Path for the output diff .tex file. "
         "If not provided, the output is saved near the input file as 'input-diff.tex'."
     )
-    parser.add_argument('--debug',
-                        action='store_true',
-                        help="Enable debug output.")
 
     args = parser.parse_args()
 
@@ -127,23 +112,9 @@ def main():
     repo_root = get_repo_root_from_path(args.input)
     repo_root_abs = os.path.abspath(repo_root)
 
-    if args.debug:
-        print(
-            f"Debug: Repository root deduced from input file: {repo_root_abs}")
-        current_commit = get_current_commit(repo_root_abs)
-        if current_commit:
-            print(f"Debug: Current commit in repository: {current_commit}")
-        else:
-            print("Debug: Could not determine current commit id.",
-                  file=sys.stderr)
-
     # Compute the absolute and relative path of the input file.
     input_abs = os.path.abspath(args.input)
     relative_input = os.path.relpath(input_abs, repo_root_abs)
-
-    if args.debug:
-        print(f"Debug: Absolute path of input file: {input_abs}")
-        print(f"Debug: Computed relative path of input file: {relative_input}")
 
     file_full_path = os.path.join(repo_root_abs, relative_input)
     if not os.path.isfile(file_full_path):
@@ -187,8 +158,6 @@ def main():
         # Write the output diff to file.
         with open(args.output, 'w', encoding='utf-8') as outfile:
             outfile.write(result.stdout)
-        if args.debug:
-            print(f"Debug: Output written to {args.output}")
     except Exception as e:
         print(f"Error during processing: {e}", file=sys.stderr)
         sys.exit(1)
