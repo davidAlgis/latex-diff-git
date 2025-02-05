@@ -6,9 +6,21 @@ import sys
 
 def check_command_exists(command):
     """Check if a command exists in the system's PATH."""
-    return subprocess.run(['which', command],
-                          stdout=subprocess.PIPE,
-                          stderr=subprocess.PIPE).returncode == 0
+    try:
+        if os.name == 'nt':  # Windows
+            result = subprocess.run(['where', command],
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE,
+                                    text=True)
+        else:  # Unix-like systems
+            result = subprocess.run(['which', command],
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE,
+                                    text=True)
+        return result.returncode == 0
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return False
 
 
 def get_file_from_commit(commit_id, file_path):
