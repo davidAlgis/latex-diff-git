@@ -69,7 +69,7 @@ def get_file_from_commit(commit_id, file_path, repo_root):
         sys.exit(1)
 
 
-def main():
+if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description="Compare two versions of a .tex file using latexdiff.")
     parser.add_argument(
@@ -171,7 +171,3 @@ def main():
                 print(
                     f"Warning: Could not remove temporary file {temp_file}: {cleanup_error}",
                     file=sys.stderr)
-
-
-if __name__ == '__main__':
-    main()
