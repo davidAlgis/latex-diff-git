@@ -12,7 +12,7 @@ def check_command_exists(command):
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE,
                                     text=True)
-        else:  # Unix-like systems
+        else:
             result = subprocess.run(['which', command],
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE,
@@ -23,19 +23,22 @@ def check_command_exists(command):
         return False
 
 
-def get_repo_root(repo_dir=None):
+def get_repo_root_from_path(path):
     """
-    Retrieve the root directory of the git repository.
-    If repo_dir is provided, it will be used as the working directory for the git command.
-    Otherwise, the current working directory is used.
+    Retrieve the git repository root for a given file path.
+    The file should be inside a git repository.
     """
+    file_dir = os.path.dirname(os.path.abspath(path))
     try:
-        cmd = ['git', 'rev-parse', '--show-toplevel']
-        cwd = repo_dir if repo_dir else os.getcwd()
-        repo_root = subprocess.check_output(cmd, cwd=cwd, text=True).strip()
+        repo_root = subprocess.check_output(
+            ['git', 'rev-parse', '--show-toplevel'], cwd=file_dir,
+            text=True).strip()
         return repo_root
     except subprocess.CalledProcessError:
-        print("Error: Could not determine repository root.", file=sys.stderr)
+        print(
+            f"Error: Could not determine repository root for {path}."
+            " Make sure the file is inside a git repository.",
+            file=sys.stderr)
         sys.exit(1)
 
 
@@ -89,19 +92,13 @@ def main():
         '--new_commit_id',
         required=True,
         help='The commit ID containing the new version of the file.')
-    parser.add_argument(
-        '-r',
-        '--repo',
-        required=False,
-        help='Path to the repository that contains the .tex file. '
-        'If not provided, the current working directory is used.')
     parser.add_argument('--debug',
                         action='store_true',
                         help='Enable debug output.')
 
     args = parser.parse_args()
 
-    # Check for necessary commands.
+    # Check necessary commands.
     if not check_command_exists('latexdiff'):
         print("Error: latexdiff command not found.", file=sys.stderr)
         sys.exit(1)
@@ -109,16 +106,13 @@ def main():
         print("Error: git command not found.", file=sys.stderr)
         sys.exit(1)
 
-    # Use the provided repository path or the current working directory.
-    repo_dir = args.repo if args.repo else os.getcwd()
-    repo_root = get_repo_root(repo_dir)
+    # Deduce the repository root from the TeX file's location.
+    repo_root = get_repo_root_from_path(args.tex_file)
     repo_root_abs = os.path.abspath(repo_root)
 
-    # Debug info: print repository details.
     if args.debug:
-        print(f"Debug: Repository directory provided: {repo_dir}")
-        print(f"Debug: Repository root: {repo_root_abs}")
-        current_commit = get_current_commit(repo_root)
+        print(f"Debug: Repository root deduced from TeX file: {repo_root_abs}")
+        current_commit = get_current_commit(repo_root_abs)
         if current_commit:
             print(f"Debug: Current commit in repository: {current_commit}")
         else:
@@ -127,12 +121,6 @@ def main():
 
     # Compute the absolute and relative path of the TeX file.
     tex_file_abs = os.path.abspath(args.tex_file)
-    if not tex_file_abs.startswith(repo_root_abs):
-        print(
-            f"Warning: The provided TeX file is not located inside the repository at {repo_root_abs}.",
-            file=sys.stderr)
-        print("Please use the -r flag to specify the correct repository.",
-              file=sys.stderr)
     relative_tex_file = os.path.relpath(tex_file_abs, repo_root_abs)
 
     if args.debug:
