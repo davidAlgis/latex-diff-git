@@ -26,10 +26,7 @@ def check_command_exists(command):
 
 
 def get_repo_root_from_path(path):
-    """
-    Retrieve the git repository root for a given file path.
-    The file should be inside a git repository.
-    """
+    """Retrieve the git repository root for a given file path."""
     file_dir = os.path.dirname(os.path.abspath(path))
     try:
         repo_root = subprocess.check_output(
@@ -46,10 +43,22 @@ def get_repo_root_from_path(path):
         sys.exit(1)
 
 
+def get_commit_info(commit_id, repo_root):
+    """Retrieve the commit title and ID for debugging output."""
+    try:
+        commit_title = subprocess.check_output(
+            ['git', '-C', repo_root, 'log', '-1', '--format=%s', commit_id],
+            encoding='utf-8',
+            errors='replace').strip()
+        return f'"{commit_title}" ({commit_id})'
+    except subprocess.CalledProcessError:
+        print(f"Warning: Could not retrieve commit title for {commit_id}.",
+              file=sys.stderr)
+        return f"(unknown title) ({commit_id})"
+
+
 def get_file_from_commit(commit_id, file_path, repo_root):
-    """
-    Retrieve a file from a specific Git commit in the repository at repo_root.
-    """
+    """Retrieve a file from a specific Git commit in the repository at repo_root."""
     try:
         result = subprocess.run(
             ['git', '-C', repo_root, 'show', f'{commit_id}:{file_path}'],
@@ -123,6 +132,14 @@ if __name__ == '__main__':
             file=sys.stderr)
         sys.exit(1)
 
+    # Retrieve commit titles for debug output
+    old_commit_info = get_commit_info(args.old_commit_id, repo_root_abs)
+    new_commit_info = get_commit_info(args.new_commit_id, repo_root_abs)
+
+    print("\nLatex diff between:")
+    print(f"  Old Version -> Commit {old_commit_info}")
+    print(f"  New Version -> Commit {new_commit_info}\n")
+
     # Retrieve the old and new versions of the file from the specified commits.
     old_file_content = get_file_from_commit(args.old_commit_id, relative_input,
                                             repo_root_abs)
@@ -137,6 +154,8 @@ if __name__ == '__main__':
             old_file.write(old_file_content)
         with open(new_file_path, 'w', encoding='utf-8') as new_file:
             new_file.write(new_file_content)
+
+        print("Applying latex diff...")
 
         # Run latexdiff to compare the two versions.
         result = subprocess.run(['latexdiff', old_file_path, new_file_path],
@@ -158,6 +177,10 @@ if __name__ == '__main__':
         # Write the output diff to file.
         with open(args.output, 'w', encoding='utf-8') as outfile:
             outfile.write(result.stdout)
+
+        print(f"Done.")
+        print(f"Output is available at '{args.output}'.")
+
     except Exception as e:
         print(f"Error during processing: {e}", file=sys.stderr)
         sys.exit(1)
