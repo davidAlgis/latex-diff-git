@@ -11,12 +11,14 @@ def check_command_exists(command):
             result = subprocess.run(['where', command],
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE,
-                                    text=True)
+                                    encoding='utf-8',
+                                    errors='replace')
         else:
             result = subprocess.run(['which', command],
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE,
-                                    text=True)
+                                    encoding='utf-8',
+                                    errors='replace')
         return result.returncode == 0
     except Exception as e:
         print(f"Error checking command {command}: {e}", file=sys.stderr)
@@ -31,13 +33,15 @@ def get_repo_root_from_path(path):
     file_dir = os.path.dirname(os.path.abspath(path))
     try:
         repo_root = subprocess.check_output(
-            ['git', 'rev-parse', '--show-toplevel'], cwd=file_dir,
-            text=True).strip()
+            ['git', 'rev-parse', '--show-toplevel'],
+            cwd=file_dir,
+            encoding='utf-8',
+            errors='replace').strip()
         return repo_root
     except subprocess.CalledProcessError:
         print(
-            f"Error: Could not determine repository root for {path}."
-            " Make sure the file is inside a git repository.",
+            f"Error: Could not determine repository root for {path}. "
+            "Make sure the file is inside a git repository.",
             file=sys.stderr)
         sys.exit(1)
 
@@ -46,7 +50,9 @@ def get_current_commit(repo_root):
     """Return the current commit id in the repository located at repo_root."""
     try:
         commit_id = subprocess.check_output(
-            ['git', '-C', repo_root, 'rev-parse', 'HEAD'], text=True).strip()
+            ['git', '-C', repo_root, 'rev-parse', 'HEAD'],
+            encoding='utf-8',
+            errors='replace').strip()
         return commit_id
     except subprocess.CalledProcessError:
         return None
@@ -61,7 +67,8 @@ def get_file_from_commit(commit_id, file_path, repo_root):
             ['git', '-C', repo_root, 'show', f'{commit_id}:{file_path}'],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True)
+            encoding='utf-8',
+            errors='replace')
         if result.returncode != 0:
             print(f"Error: Could not retrieve file from commit {commit_id}.",
                   file=sys.stderr)
@@ -98,7 +105,7 @@ def main():
 
     args = parser.parse_args()
 
-    # Check necessary commands.
+    # Check for necessary commands.
     if not check_command_exists('latexdiff'):
         print("Error: latexdiff command not found.", file=sys.stderr)
         sys.exit(1)
@@ -154,7 +161,8 @@ def main():
         result = subprocess.run(['latexdiff', old_file_path, new_file_path],
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE,
-                                text=True)
+                                encoding='utf-8',
+                                errors='replace')
         if result.returncode != 0:
             print("Error: latexdiff failed.", file=sys.stderr)
             print(result.stderr, file=sys.stderr)
